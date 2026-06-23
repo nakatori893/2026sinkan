@@ -14,49 +14,18 @@ body {
   background: linear-gradient(180deg, #fff8dc, #ffe4e1);
 }
 
-.title {
-  font-size: 26px;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 15px;
-}
-
 .card {
-  background: white;
-  border-radius: 15px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
   padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  margin-bottom: 10px;
+  background: white;
 }
 
 .row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0 10px 0;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
-}
-
-button {
-  border: none;
-  border-radius: 10px;
-  padding: 10px;
-  margin-top: 8px;
-  font-weight: bold;
-  color: white;
-  cursor: pointer;
-}
-
-.main-btn {
-  width: 100%;
-  background: #ff7f50;
+  margin-bottom: 8px;
 }
 
 .special {
@@ -65,84 +34,97 @@ button {
   text-shadow: 1px 1px 2px black;
 }
 
-.admin-link {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background: #333;
-  color: white;
-  padding: 6px 10px;
+button {
+  margin-top: 8px;
+  padding: 10px;
+  border: none;
   border-radius: 8px;
+  color: white;
+  background: #ff7f50;
+  width: 100%;
 }
 </style>
 </head>
 
 <body>
 
-<div class="admin-link" onclick="toggleAdmin()">管理者</div>
-
-<div class="title">🎉 大抽選イベント 🎉</div>
+<h2>🎉 大抽選イベント 🎉</h2>
 
 <div class="card">
   <h3>投票</h3>
 
-  <input id="name" placeholder="名前">
+  <input id="name" placeholder="名前" style="width:100%;padding:10px;">
 
   <div id="votes"></div>
 
-  <p>残り票数: <span id="remain">3</span></p>
+  <p>残り: <span id="remain">3</span></p>
 
-  <button class="main-btn" onclick="vote()">🎁 投票する</button>
+  <button onclick="vote()">🎁 投票する</button>
 </div>
 
+<!-- ✅ 管理画面（隠し） -->
 <div class="card" id="adminArea" style="display:none;">
   <h3>管理者</h3>
 
-  <button onclick="lock()">投票締切</button>
-  <button onclick="startVote()">投票開始</button>
-  <button onclick="resetAllVotes()">全投票リセット</button>
+  <button onclick="loadData()">最新データ取得</button>
+  <button onclick="lottery()">抽選</button>
+
+  <div id="voteList"></div>
+  <div id="result"></div>
 </div>
 
 <script>
 
-// ✅ ここにApps Script URL入れる
-const API_URL="https://script.google.com/macros/s/AKfycbyCKbNQ2xbkaaFdzHe2fPDU49CdnTKdmh7Uu3gG85k2-rPRUVK9Il42134zfKwBnpco/exec";
+// ✅ API URL
+const API_URL = "https://script.google.com/macros/s/AKfycbztu2YPZGKX5dbqrtGvhRB_eLEqJnkoLO2DpILo6hlDuY7HTS4_sItaJRQUhrZGWRt1/exec";
 
-const prizes = ["A","B","C","D","E","F","G","H","I","J","K","L"];
-let locked = false;
-let isAdmin = false;
+// ✅ 景品
+const prizes = [
+  { key: "A", name: "JCBギフトカード" },
+  { key: "B", name: "クモリ ヨガマット" },
+  { key: "C", name: "GP HITSTER" },
+  { key: "D", name: "Francfranc ハンディファン" },
+  { key: "E", name: "Anker モバイルバッテリー" },
+  { key: "F", name: "クイックルワイパー スターターセット" },
+  { key: "G", name: "ドウシシャ 電動かき氷機" },
+  { key: "H", name: "uFit Performance Pole" },
+  { key: "I", name: "Levoit 空気清浄機" },
+  { key: "J", name: "冷酒徳利セット" },
+  { key: "K", name: "T-fal フライパンセット" },
+  { key: "L", name: "Panasonic スチームアイロン" }
+];
 
-// UI生成
+let allData = [];
+
+// ✅ UI生成
 const voteDiv = document.getElementById("votes");
 
 prizes.forEach(p=>{
   voteDiv.innerHTML += `
-  <div class="row">
-    <span class="${["J","K","L"].includes(p)?"special":""}">
-      ${p}${["J","K","L"].includes(p)?" 🏆特賞":""}
-    </span>
-    <input type="number" min="0" max="3" value="0" id="v_${p}" style="width:60px;">
-  </div>`;
+    <div class="row">
+      <span class="${["J","K","L"].includes(p.key) ? "special" : ""}">
+        ${p.name}
+      </span>
+      <input type="number" min="0" max="3" value="0" id="v_${p.key}" style="width:60px;">
+    </div>
+  `;
 });
 
-// 残り票
+// ✅ 残り票
 function updateRemain(){
   let total = 0;
   prizes.forEach(p=>{
-    total += parseInt(document.getElementById("v_"+p).value) || 0;
+    total += parseInt(document.getElementById("v_"+p.key).value) || 0;
   });
   document.getElementById("remain").innerText = 3 - total;
 }
 
 prizes.forEach(p=>{
-  document.getElementById("v_"+p)
-    .addEventListener("input", updateRemain);
+  document.getElementById("v_"+p.key).addEventListener("input", updateRemain);
 });
 
-// 投票（Google送信）
+// ✅ 投票
 function vote(){
-
-  if(locked) return alert("現在投票できません");
 
   const name = document.getElementById("name").value.trim();
   if(!name) return alert("名前を入力してください");
@@ -151,66 +133,93 @@ function vote(){
   let total = 0;
 
   prizes.forEach(p=>{
-    let val = parseInt(document.getElementById("v_"+p).value) || 0;
-    vote[p] = val;
+    let val = parseInt(document.getElementById("v_"+p.key).value) || 0;
+    vote[p.key] = val;
     total += val;
   });
 
-  if(total !== 3){
-    return alert("合計3票にしてください");
-  }
-
-  // ✅ Googleに送信
-  fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify(vote)
-  })
-  .then(res => res.json())
-  .then(()=>{
-    alert("投票完了 ✅");
-
-    document.getElementById("name").value="";
-    prizes.forEach(p=> document.getElementById("v_"+p).value=0);
-    updateRemain();
-  })
-  .catch(()=>{
-    alert("送信エラー");
-  });
-}
-
-// 管理画面
-function toggleAdmin(){
-  if(!isAdmin){
-    const pass = prompt("パスワード");
-    if(pass !== "admin123") return;
-    isAdmin = true;
-  }
-  const el = document.getElementById("adminArea");
-  el.style.display = (el.style.display==="none")?"block":"none";
-}
-
-// 投票制御
-function lock(){
-  locked = true;
-  alert("投票を締切しました");
-}
-
-function startVote(){
-  locked = false;
-  alert("投票を開始しました");
-}
-
-// 全削除
-function resetAllVotes(){
-  if(!confirm("全データ削除しますか？")) return;
-  if(!confirm("本当に削除？")) return;
+  if(total !== 3) return alert("3票にしてください");
 
   fetch(API_URL,{
     method:"POST",
-    body: JSON.stringify({ reset:true })
+    body:JSON.stringify(vote)
+  })
+  .then(()=> alert("投票完了 ✅"))
+  .catch(()=> alert("送信エラー"));
+}
+
+// ✅ 管理画面（10回連打）
+let tapCount = 0;
+
+document.body.addEventListener("click", function(){
+  tapCount++;
+
+  if(tapCount >= 10){
+    openAdmin();
+    tapCount = 0;
+  }
+});
+
+function openAdmin(){
+  const pass = prompt("管理者パスワード");
+  if(pass === "admin123"){
+    document.getElementById("adminArea").style.display = "block";
+  } else {
+    alert("権限なし");
+  }
+}
+
+// ✅ データ取得
+function loadData(){
+  fetch(API_URL)
+  .then(r=>r.json())
+  .then(data=>{
+
+    data.shift(); // ヘッダー削除
+    allData = data;
+
+    let html = "<h4>投票一覧</h4>";
+
+    allData.forEach(row=>{
+      html += row[0] + "<br>";
+    });
+
+    document.getElementById("voteList").innerHTML = html;
+  });
+}
+
+// ✅ 抽選
+function lottery(){
+
+  let pool = {};
+  prizes.forEach(p=> pool[p.key] = []);
+
+  allData.forEach(row=>{
+    prizes.forEach((p,i)=>{
+      for(let j=0;j<(row[i+1]||0);j++){
+        pool[p.key].push(row[0]);
+      }
+    });
   });
 
-  alert("リセット実行（シート側も空にしてください）");
+  let winners = new Set();
+
+  function draw(list){
+    let f = list.filter(n=>!winners.has(n));
+    if(!f.length) return "なし";
+    let w = f[Math.floor(Math.random()*f.length)];
+    winners.add(w);
+    return w;
+  }
+
+  let result = "";
+
+  prizes.forEach(p=>{
+    let w = draw(pool[p.key]);
+    result += `${p.name}：${w}\n`;
+  });
+
+  document.getElementById("result").innerText = result;
 }
 
 updateRemain();
@@ -219,3 +228,4 @@ updateRemain();
 
 </body>
 </html>
+``

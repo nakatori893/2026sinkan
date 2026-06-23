@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抽選結果</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  text-align: center;
+  padding: 10px;
+  background: black;
+  color: white;
+}
+
+.title {
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+/* カード */
+.card {
+  border-radius: 15px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background: #111;
+  box-shadow: 0 0 10px rgba(255,255,255,0.2);
+}
+
+/* 特賞 */
+.special {
+  background: linear-gradient(45deg,#ff0000,#ffcc00);
+  color: black;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+/* 当選者 */
+.name {
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+/* 花火 */
+#fireworks {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="fireworks"></canvas>
+
+<div class="title">🎉 抽選結果発表 🎉</div>
+
+<div id="result"></div>
+
+<script>
+
+// ✅ API URL（同じもの）
+const API_URL = "ここにApps Script URL";
+
+// ✅ 景品
+const prizes = [
+  { key:"L", name:"Panasonic スチームアイロン" },
+  { key:"K", name:"T-fal フライパンセット" },
+  { key:"J", name:"冷酒徳利セット" },
+  { key:"B", name:"クモリ ヨガマット" },
+  { key:"C", name:"GP HITSTER" },
+  { key:"D", name:"Francfranc ハンディファン" },
+  { key:"E", name:"Anker モバイルバッテリー" },
+  { key:"F", name:"クイックルワイパー スターターセット" },
+  { key:"G", name:"ドウシシャ 電動かき氷機" },
+  { key:"H", name:"uFit Performance Pole" },
+  { key:"I", name:"Levoit 空気清浄機" },
+  { key:"A", name:"JCBギフトカード" }
+];
+
+// 🎆 花火
+const canvas = document.getElementById("fireworks");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let fireworks = [];
+
+function createFirework(){
+  let x = Math.random() * canvas.width;
+  let y = Math.random() * canvas.height / 2;
+
+  for(let i=0;i<25;i++){
+    fireworks.push({
+      x,y,
+      angle:Math.random()*Math.PI*2,
+      speed:Math.random()*4+2,
+      life:50
+    });
+  }
+}
+
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  fireworks.forEach((f,i)=>{
+    f.x+=Math.cos(f.angle)*f.speed;
+    f.y+=Math.sin(f.angle)*f.speed;
+    f.life--;
+
+    ctx.fillStyle="rgba(255,200,0,"+(f.life/50)+")";
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,2,0,Math.PI*2);
+    ctx.fill();
+
+    if(f.life<=0) fireworks.splice(i,1);
+  });
+
+  requestAnimationFrame(animate);
+}
+
+setInterval(createFirework,1200);
+animate();
+
+// ⏱ 待ち
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+// ✅ データ取得＆抽選演出
+async function showResult(){
+
+  let res = await fetch(API_URL);
+  let data = await res.json();
+
+  data.shift(); // ヘッダー削除
+
+  let pool = {};
+  prizes.forEach(p=> pool[p.key]=[]);
+
+  data.forEach(row=>{
+    prizes.forEach((p,i)=>{
+      for(let j=0;j<(row[i+1]||0);j++){
+        pool[p.key].push(row[0]);
+      }
+    });
+  });
+
+  let winners = new Set();
+
+  function draw(list){
+    let f = list.filter(n=>!winners.has(n));
+    if(!f.length) return "なし";
+    let w = f[Math.floor(Math.random()*f.length)];
+    winners.add(w);
+    return w;
+  }
+
+  let resultDiv = document.getElementById("result");
+
+  // 🎬 順番に表示
+  for(const p of prizes){
+
+    const isSpecial = ["J","K","L"].includes(p.key);
+
+    let card = document.createElement("div");
+    card.className = "card " + (isSpecial ? "special" : "");
+    card.innerHTML = p.name;
+
+    resultDiv.appendChild(card);
+
+    await sleep(800);
+
+    let winner = draw(pool[p.key]);
+
+    let nameDiv = document.createElement("div");
+    nameDiv.className = "name";
+    nameDiv.innerText = "👤 " + winner;
+
+    card.appendChild(nameDiv);
+
+    // 特賞は花火多め
+    if(isSpecial){
+      for(let i=0;i<3;i++) createFirework();
+      await sleep(1500);
+    } else {
+      await sleep(700);
+    }
+  }
+}
+
+// 実行
+showResult();
+
+</script>
+
+</body>
+</html>
+``
