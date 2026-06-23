@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投票システム</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  padding: 10px;
+  max-width: 500px;
+  margin: auto;
+  background: linear-gradient(180deg, #fff8dc, #ffe4e1);
+}
+
+.title {
+  font-size: 26px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0 10px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 8px;
+  font-weight: bold;
+  color: white;
+  cursor: pointer;
+}
+
+.main-btn {
+  width: 100%;
+  background: #ff7f50;
+}
+
+.special {
+  color: #ffcc00;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px black;
+}
+
+.admin-link {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #333;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="admin-link" onclick="toggleAdmin()">管理者</div>
+
+<div class="title">🎉 大抽選イベント 🎉</div>
+
+<div class="card">
+  <h3>投票</h3>
+
+  <input id="name" placeholder="名前">
+
+  <div id="votes"></div>
+
+  <p>残り票数: <span id="remain">3</span></p>
+
+  <button class="main-btn" onclick="vote()">🎁 投票する</button>
+</div>
+
+<div class="card" id="adminArea" style="display:none;">
+  <h3>管理者</h3>
+
+  <button onclick="lock()">投票締切</button>
+  <button onclick="startVote()">投票開始</button>
+  <button onclick="resetAllVotes()">全投票リセット</button>
+</div>
+
+<script>
+
+// ✅ ここにApps Script URL入れる
+const API_URL="https://script.google.com/macros/s/AKfycbyCKbNQ2xbkaaFdzHe2fPDU49CdnTKdmh7Uu3gG85k2-rPRUVK9Il42134zfKwBnpco/exec";
+
+const prizes = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+let locked = false;
+let isAdmin = false;
+
+// UI生成
+const voteDiv = document.getElementById("votes");
+
+prizes.forEach(p=>{
+  voteDiv.innerHTML += `
+  <div class="row">
+    <span class="${["J","K","L"].includes(p)?"special":""}">
+      ${p}${["J","K","L"].includes(p)?" 🏆特賞":""}
+    </span>
+    <input type="number" min="0" max="3" value="0" id="v_${p}" style="width:60px;">
+  </div>`;
+});
+
+// 残り票
+function updateRemain(){
+  let total = 0;
+  prizes.forEach(p=>{
+    total += parseInt(document.getElementById("v_"+p).value) || 0;
+  });
+  document.getElementById("remain").innerText = 3 - total;
+}
+
+prizes.forEach(p=>{
+  document.getElementById("v_"+p)
+    .addEventListener("input", updateRemain);
+});
+
+// 投票（Google送信）
+function vote(){
+
+  if(locked) return alert("現在投票できません");
+
+  const name = document.getElementById("name").value.trim();
+  if(!name) return alert("名前を入力してください");
+
+  let vote = { name };
+  let total = 0;
+
+  prizes.forEach(p=>{
+    let val = parseInt(document.getElementById("v_"+p).value) || 0;
+    vote[p] = val;
+    total += val;
+  });
+
+  if(total !== 3){
+    return alert("合計3票にしてください");
+  }
+
+  // ✅ Googleに送信
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify(vote)
+  })
+  .then(res => res.json())
+  .then(()=>{
+    alert("投票完了 ✅");
+
+    document.getElementById("name").value="";
+    prizes.forEach(p=> document.getElementById("v_"+p).value=0);
+    updateRemain();
+  })
+  .catch(()=>{
+    alert("送信エラー");
+  });
+}
+
+// 管理画面
+function toggleAdmin(){
+  if(!isAdmin){
+    const pass = prompt("パスワード");
+    if(pass !== "admin123") return;
+    isAdmin = true;
+  }
+  const el = document.getElementById("adminArea");
+  el.style.display = (el.style.display==="none")?"block":"none";
+}
+
+// 投票制御
+function lock(){
+  locked = true;
+  alert("投票を締切しました");
+}
+
+function startVote(){
+  locked = false;
+  alert("投票を開始しました");
+}
+
+// 全削除
+function resetAllVotes(){
+  if(!confirm("全データ削除しますか？")) return;
+  if(!confirm("本当に削除？")) return;
+
+  fetch(API_URL,{
+    method:"POST",
+    body: JSON.stringify({ reset:true })
+  });
+
+  alert("リセット実行（シート側も空にしてください）");
+}
+
+updateRemain();
+
+</script>
+
+</body>
+</html>
