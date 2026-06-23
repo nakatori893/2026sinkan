@@ -3,17 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>抽選結果</title>
+<title>抽選結果発表</title>
 
 <style>
 body {
   font-family: sans-serif;
   text-align: center;
+  margin: 0;
   padding: 10px;
   background: black;
   color: white;
 }
 
+/* タイトル */
 .title {
   font-size: 28px;
   margin-bottom: 20px;
@@ -21,10 +23,10 @@ body {
 
 /* カード */
 .card {
-  border-radius: 15px;
-  padding: 15px;
-  margin-bottom: 20px;
   background: #111;
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 20px;
   box-shadow: 0 0 10px rgba(255,255,255,0.2);
 }
 
@@ -36,10 +38,10 @@ body {
   font-weight: bold;
 }
 
-/* 当選者 */
+/* 名前 */
 .name {
   margin-top: 10px;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 /* 花火 */
@@ -59,15 +61,14 @@ body {
 <canvas id="fireworks"></canvas>
 
 <div class="title">🎉 抽選結果発表 🎉</div>
-
 <div id="result"></div>
 
 <script>
 
-// ✅ API URL（同じもの）
-const API_URL = "ここにApps Script URL";
+// ✅ Apps Script API
+const API_URL = "ここにURL";
 
-// ✅ 景品
+// ✅ 表示順（イベント順）
 const prizes = [
   { key:"L", name:"Panasonic スチームアイロン" },
   { key:"K", name:"T-fal フライパンセット" },
@@ -83,9 +84,10 @@ const prizes = [
   { key:"A", name:"JCBギフトカード" }
 ];
 
-// 🎆 花火
+// 🎆 花火エフェクト
 const canvas = document.getElementById("fireworks");
 const ctx = canvas.getContext("2d");
+
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -95,11 +97,11 @@ function createFirework(){
   let x = Math.random() * canvas.width;
   let y = Math.random() * canvas.height / 2;
 
-  for(let i=0;i<25;i++){
+  for(let i=0;i<30;i++){
     fireworks.push({
       x,y,
       angle:Math.random()*Math.PI*2,
-      speed:Math.random()*4+2,
+      speed:Math.random()*5+2,
       life:50
     });
   }
@@ -109,8 +111,8 @@ function animate(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   fireworks.forEach((f,i)=>{
-    f.x+=Math.cos(f.angle)*f.speed;
-    f.y+=Math.sin(f.angle)*f.speed;
+    f.x += Math.cos(f.angle)*f.speed;
+    f.y += Math.sin(f.angle)*f.speed;
     f.life--;
 
     ctx.fillStyle="rgba(255,200,0,"+(f.life/50)+")";
@@ -127,10 +129,10 @@ function animate(){
 setInterval(createFirework,1200);
 animate();
 
-// ⏱ 待ち
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
+// ⏱ 演出用
+const sleep = ms => new Promise(res=>setTimeout(res,ms));
 
-// ✅ データ取得＆抽選演出
+// 🎯 抽選＆表示
 async function showResult(){
 
   let res = await fetch(API_URL);
@@ -161,7 +163,7 @@ async function showResult(){
 
   let resultDiv = document.getElementById("result");
 
-  // 🎬 順番に表示
+  // 🎬 順番演出
   for(const p of prizes){
 
     const isSpecial = ["J","K","L"].includes(p.key);
@@ -182,7 +184,6 @@ async function showResult(){
 
     card.appendChild(nameDiv);
 
-    // 特賞は花火多め
     if(isSpecial){
       for(let i=0;i<3;i++) createFirework();
       await sleep(1500);
@@ -199,4 +200,3 @@ showResult();
 
 </body>
 </html>
-``
