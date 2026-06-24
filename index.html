@@ -32,6 +32,13 @@ body {
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
 }
 
+.card h4 {
+  margin-top: 0;
+  font-size: 16px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
+}
+
 .row {
   display: flex;
   justify-content: space-between;
@@ -55,7 +62,6 @@ input {
 
 .row input {
   width: 60px;
-  margin-left: 10px;
 }
 
 button {
@@ -64,63 +70,113 @@ button {
   font-size: 16px;
   border-radius: 10px;
   border: none;
-  background: #ff7f50;
+  margin-top: 10px;
   color: white;
   font-weight: bold;
 }
+
+.btn-main { background:#ff7f50; }
+.btn-load { background:#444; }
+.btn-lottery { background:red; }
+.btn-public { background:green; }
+.btn-reset { background:gray; }
 
 .special {
   color: #ffcc00;
   font-weight: bold;
   text-shadow: 1px 1px 2px black;
 }
+
+button {
+  transition: 0.1s;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+}
+
+button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+}
+
+.description {
+  background: white;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
 </style>
 </head>
 
 <body>
 
-<div class="title">🎉 大抽選イベント 🎉</div>
+<div class="title" id="title">🎁 2026新入社員歓迎会　大抽選会 🎁</div>
+
+<div class="description">
+  本イベントでは3票を使って好きな景品に応募できます！<br>
+  1点に全てを投じるもよし、確実に取れそうな景品に投じるもよし、幅広く保険を掛けるもよしの戦略型イベントです！<br>
+  投票完了後、抽選により当選者を決定しますので結果発表をお楽しみに！
+</div>
 
 <div class="card">
-  <input id="name" placeholder="名前">
+  <input id="name" placeholder="名前(フルネーム)※スペース不要">
 
   <div id="votes"></div>
 
   <p>残り: <span id="remain">3</span></p>
 
-  <button onclick="vote()">🎁 投票する</button>
+  <button class="btn-main" onclick="vote()">🎁 投票する</button>
 </div>
 
+<!-- 管理画面 -->
 <div class="card" id="adminArea" style="display:none;">
   <h3>管理者</h3>
 
-  <button onclick="loadData()">データ取得</button>
+  <button class="btn-load" onclick="loadData()">📊 データ取得</button>
+  <button class="btn-lottery" onclick="lottery()">🎯 抽選</button>
+  <button class="btn-public" onclick="openPublic()">📺 結果発表</button>
+  <button class="btn-reset" onclick="resetAllVotes()">🗑 全削除</button>
+
+<div id="voteCount" style="margin-top:10px; font-weight:bold;"></div>
+
+<!-- 投票一覧カード -->
+<div class="card">
+  <h4>📊 投票一覧</h4>
   <div id="voteList"></div>
+</div>
+
+<!-- 当選結果カード -->
+<div class="card">
+  <h4>🎯 当選結果</h4>
+  <div id="result"></div>
+</div>
 </div>
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyQrOYRdsIeBUjrKbfEQSJL-isSlDM0MVvyS7GBNX87JjnuhH2poBYZrYkcfX4hm1Vc/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbzQimC2eGgB_jG2w2k91dWhoBPCfnSh0tbueedUG9nlsnSk4sMVq0_4DpiPW47RUGCS/exec";
 
-// 景品
+/* 景品 */
 const prizes = [
-  { key:"A", name:"JCBギフトカード" },
-  { key:"B", name:"クモリ ヨガマット" },
-  { key:"C", name:"GP HITSTER" },
-  { key:"D", name:"Francfranc ハンディファン" },
-  { key:"E", name:"Anker モバイルバッテリー" },
-  { key:"F", name:"クイックルワイパー スターターセット" },
-  { key:"G", name:"ドウシシャ 電動かき氷機" },
-  { key:"H", name:"uFit Performance Pole" },
-  { key:"I", name:"Levoit 空気清浄機" },
-  { key:"J", name:"冷酒徳利セット" },
-  { key:"K", name:"T-fal フライパンセット" },
-  { key:"L", name:"Panasonic スチームアイロン" }
+  { key:"A", name:"①JCBギフトカード　10枠" },
+  { key:"B", name:"②kumori ヨガマット　1枠" },
+  { key:"C", name:"③GP HITSTER　1枠" },
+  { key:"D", name:"④Francfranc ハンディファン　1枠" },
+  { key:"E", name:"⑤Anker モバイルバッテリー　1枠" },
+  { key:"F", name:"⑥クイックルワイパー スターターセット　1枠" },
+  { key:"G", name:"⑦ドウシシャ 電動かき氷機　1枠" },
+  { key:"H", name:"⑧uFit Performance Pole　1枠" },
+  { key:"I", name:"⑨Levoit 空気清浄機　1枠" },
+  { key:"J", name:"⑩冷酒徳利セット　1枠" },
+  { key:"K", name:"⑪T-fal フライパンセット　1枠" },
+  { key:"L", name:"⑫Panasonic スチームアイロン　1枠" }
 ];
 
 let allData = [];
 
-// UI生成
+/* UI生成 */
 const voteDiv = document.getElementById("votes");
 
 prizes.forEach(p=>{
@@ -133,104 +189,295 @@ prizes.forEach(p=>{
   </div>`;
 });
 
-// 残り票
-function updateRemain(){
- let total=0;
- prizes.forEach(p=>{
-  total+=parseInt(document.getElementById("v_"+p.key).value)||0;
- });
- document.getElementById("remain").innerText=3-total;
-}
 prizes.forEach(p=>{
- document.getElementById("v_"+p.key).addEventListener("input",updateRemain);
+  const input = document.getElementById("v_"+p.key);
+
+  input.addEventListener("input", () => {
+
+    let total = 0;
+
+    // 合計計算
+    prizes.forEach(pp=>{
+      total += Number(document.getElementById("v_"+pp.key).value) || 0;
+    });
+
+    // 3超えたら戻す
+    if(total > 3){
+
+      let current = Number(input.value) || 0;
+
+      input.value = current - (total - 3);
+
+      if(input.value < 0){
+        input.value = 0;
+      }
+    }
+
+    updateRemain();
+  });
 });
 
-// 投票（重複防止）
+/* 残り票 */
+function updateRemain(){
+  let total = 0;
+  prizes.forEach(p=>{
+    total += Number(document.getElementById("v_"+p.key).value)||0;
+  });
+  document.getElementById("remain").innerText = 3 - total;
+}
+
+prizes.forEach(p=>{
+  document.getElementById("v_"+p.key).addEventListener("input", updateRemain);
+});
+
+/* 投票 */
 function vote(){
 
- const name=document.getElementById("name").value.trim();
- if(!name) return alert("名前入力");
+  const name = document.getElementById("name").value.trim();
+  if(!name) return alert("名前入力");
 
- fetch(API_URL,{
-  method:"POST",
-  body:JSON.stringify({type:"check",name})
- })
- .then(r=>r.json())
- .then(res=>{
-  if(res.exists){
-   if(!confirm("上書きしますか？")) return;
-   submitVote(name,"update");
-  }else{
-   submitVote(name,"new");
-  }
- });
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({type:"check",name})
+  })
+  .then(r=>r.json())
+  .then(res=>{
+    if(res.exists){
+      if(!confirm("上書きしますか？")) return;
+      submitVote(name,"update");
+    }else{
+      submitVote(name,"new");
+    }
+  });
 }
 
-// 投票送信
 function submitVote(name,type){
 
- let vote={name,type};
+  let vote = { name, type };
 
- prizes.forEach(p=>{
-  vote[p.key]=parseInt(document.getElementById("v_"+p.key).value)||0;
- });
-
- fetch(API_URL,{
-  method:"POST",
-  body:JSON.stringify(vote)
- }).then(()=> alert("完了"));
-}
-
-// 管理画面（10回タップ）
-let tapCount=0;
-document.body.addEventListener("click",()=>{
- tapCount++;
- if(tapCount>=10){
-  let pass=prompt("管理者パスワード");
-  if(pass==="admin123"){
-    document.getElementById("adminArea").style.display="block";
-  }
-  tapCount=0;
- }
-});
-
-// データ取得
-function loadData(){
- fetch(API_URL)
- .then(r=>r.json())
- .then(data=>{
-  data.shift();
-  allData=data;
-
-  let html="<h4>一覧</h4>";
-
-  prizes.forEach((p,i)=>{
-    html+=`<b>${p.name}</b><br>`;
-    allData.forEach(row=>{
-      let val=row[i+1];
-      if(val>0){
-        html+=`${row[0]}(${val})
-        <button onclick="deletePrize('${row[0]}','${p.key}')">削除</button><br>`;
-      }
-    });
-    html+="<br>";
+  prizes.forEach(p=>{
+    vote[p.key] = Number(document.getElementById("v_"+p.key).value)||0;
   });
 
-  document.getElementById("voteList").innerHTML=html;
- });
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify(vote)
+  }).then(()=>alert("送信完了"));
 }
 
-// 景品削除
+/* 管理画面（タイトル長押し） */
+let pressTimer;
+const target = document.getElementById("title");
+
+// スマホ（タッチ）
+target.addEventListener("touchstart", startPress);
+target.addEventListener("touchend", endPress);
+
+// PC（マウス）
+target.addEventListener("mousedown", startPress);
+target.addEventListener("mouseup", endPress);
+target.addEventListener("mouseleave", endPress);
+
+function startPress(){
+  pressTimer = setTimeout(() => {
+    openAdmin();
+  }, 2000); // 2秒
+}
+
+function endPress(){
+  clearTimeout(pressTimer);
+}
+
+function openAdmin(){
+  let pass = prompt("管理者パスワード");
+
+  if(pass === "admin123"){
+    document.getElementById("adminArea").style.display = "block";
+  } else {
+    alert("残念( ˘ω˘)ちみは入れません");
+  }
+}
+
+/* ✅ ✅ ✅ 投票一覧（完全修正版） */
+function loadData(){
+
+  fetch(API_URL)
+  .then(r=>r.json())
+  .then(data=>{
+
+    data.shift(); // ヘッダー削除
+    allData = data;
+
+
+    document.getElementById("voteCount").innerText =
+      "👥 投票人数：" + allData.length + "人";
+
+
+    let html = "<h4>投票一覧</h4>";
+
+    prizes.forEach((p,i)=>{
+
+      html += `<div style="margin-bottom:15px;">`;
+      html += `<div style="font-weight:bold;">${p.name}</div>`;
+
+      let has = false;
+
+      allData.forEach(row=>{
+
+        let value = Number(row[i*2 + 1]) || 0;
+        let active = Number(row[i*2 + 2]) === 1;
+
+        if(value > 0){
+
+          has = true;
+
+          html += `
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              margin:4px 0;
+            ">
+
+              <span style="
+                ${!active ? 'color:#aaa;text-decoration:line-through;' : ''}
+              ">
+                👤 ${row[0]}（${value}票）
+              </span>
+
+              <button 
+                onclick="togglePrize('${row[0]}','${p.key}')"
+                style="
+                  width:auto;
+                  padding:4px 8px;
+                  font-size:12px;
+                  border:none;
+                  border-radius:6px;
+                  color:white;
+                  background:${active ? '#4caf50' : '#999'};
+                ">
+                ${active ? '有効' : '無効'}
+              </button>
+
+            </div>
+          `;
+        }
+      });
+
+      if(!has){
+        html += `<div style="color:#888;">なし</div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    document.getElementById("voteList").innerHTML = html;
+  });
+}
+/* 景品削除 */
 function deletePrize(name,prize){
 
- if(!confirm("削除しますか？")) return;
+  if(!confirm("削除？")) return;
 
- fetch(API_URL,{
-  method:"POST",
-  body:JSON.stringify({type:"deletePrize",name,prize})
- }).then(()=>{
-  loadData();
- });
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({type:"deletePrize",name,prize})
+  }).then(()=>loadData());
+}
+
+/* 抽選（Aは10人） */
+function lottery(){
+
+  let pool={};
+  prizes.forEach(p=>pool[p.key]=[]);
+
+allData.forEach(row=>{
+
+  prizes.forEach((p,i)=>{
+
+    // ✅ 票と有効状態（ここ重要）
+    let value = Number(row[i*2 + 1]) || 0;
+    let active = Number(row[i*2 + 2]) === 1;
+
+    // ✅ 無効は完全スキップ
+    if(!active) return;
+
+    // ✅ 有効な票だけ追加
+    for(let j=0;j<value;j++){
+      pool[p.key].push(row[0]);
+    }
+  });
+});
+
+  let winners=new Set();
+
+  function draw(list){
+    let f=list.filter(n=>!winners.has(n));
+    if(!f.length) return "なし";
+    let w=f[Math.floor(Math.random()*f.length)];
+    winners.add(w);
+    return w;
+  }
+
+  let html="";
+  let resultData=[];
+
+  prizes.forEach(p=>{
+
+    let count = (p.key==="A") ? 10 : 1;
+
+    html += `<b>${p.name}</b><br>`;
+
+    for(let i=0;i<count;i++){
+      let w = draw(pool[p.key]);
+      if(w==="なし") break;
+
+      html += `👤 ${w}<br>`;
+      resultData.push({prize:p.name,name:w});
+    }
+
+    html += "<br>";
+  });
+
+  document.getElementById("result").innerHTML = html;
+
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({type:"saveResult",result:resultData})
+  });
+}
+
+function togglePrize(name, prize){
+
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({
+      type:"togglePrize",
+      name:name,
+      prize:prize
+    })
+  })
+  .then(()=>loadData());
+}
+
+/* 公開 */
+function openPublic(){
+  window.open("public.html","_blank");
+}
+
+/* 全削除 */
+function resetAllVotes(){
+
+  if(!confirm("全削除?")) return;
+  if(!confirm("本当に削除?")) return;
+
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({type:"reset"})
+  }).then(()=>{
+    alert("削除完了");
+    loadData();
+  });
 }
 
 updateRemain();

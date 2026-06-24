@@ -2,56 +2,104 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>抽選結果発表</title>
+<title>抽選結果</title>
 
 <style>
 body {
-  font-family: sans-serif;
-  text-align: center;
-  margin: 0;
-  padding: 10px;
-  background: black;
-  color: white;
+  background:#000;
+  color:#fff;
+  text-align:center;
+  font-family:sans-serif;
 }
 
-/* タイトル */
-.title {
-  font-size: 28px;
-  margin-bottom: 20px;
+/* 🎆 花火 */
+#fireworks {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:0;
+  pointer-events:none;
+}
+
+/* 前面 */
+body > *:not(canvas) {
+  position:relative;
+  z-index:1;
 }
 
 /* カード */
 .card {
-  background: #111;
-  border-radius: 15px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 0 10px rgba(255,255,255,0.2);
+  background:#111;
+  margin:15px auto;
+  padding:15px;
+  border-radius:10px;
+  max-width:400px;
+  opacity:0;
+  transition:0.5s;
 }
+.card.show { opacity:1; }
 
-/* 特賞 */
-.special {
-  background: linear-gradient(45deg,#ff0000,#ffcc00);
-  color: black;
-  font-size: 22px;
-  font-weight: bold;
-}
-
-/* 名前 */
 .name {
-  margin-top: 10px;
-  font-size: 20px;
+  font-size:20px;
+  font-weight:bold;
+  margin:5px 0;
 }
 
-/* 花火 */
-#fireworks {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
+/* 特賞カード */
+.special-card {
+  background:#f5d96b;
+  color:#000;
+}
+
+/* ===== 特賞演出（見やすさ改善版）===== */
+
+.special-overlay {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+
+  /* ✅ 見やすさ改善ポイント */
+  background:rgba(0,0,0,0.8);
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+.special-title {
+  font-size:34px;
+  margin-bottom:20px;
+}
+
+.special-name {
+  font-size:46px;
+  margin:10px 0;
+  opacity:0;
+  transition:0.4s;
+}
+
+.ultra {
+  font-size:70px;
+  transform:scale(0.6);
+  transition:0.6s;
+  font-weight:bold;
+}
+
+.ultra.show {
+  transform:scale(1.3);
+}
+
+/* ✅ 文字強調（重要） */
+.special-title,
+.special-name,
+.ultra {
+  text-shadow: 0 0 10px #000, 0 0 20px #000;
 }
 </style>
 </head>
@@ -60,141 +108,232 @@ body {
 
 <canvas id="fireworks"></canvas>
 
-<div class="title">🎉 抽選結果発表 🎉</div>
+<h1>🎁 抽選結果 🎁</h1>
 <div id="result"></div>
 
 <script>
 
-// ✅ Apps Script API
-const API_URL = "ここにURL";
+const API_URL = "https://script.google.com/macros/s/AKfycbzQimC2eGgB_jG2w2k91dWhoBPCfnSh0tbueedUG9nlsnSk4sMVq0_4DpiPW47RUGCS/exec";
 
-// ✅ 表示順（イベント順）
-const prizes = [
-  { key:"L", name:"Panasonic スチームアイロン" },
-  { key:"K", name:"T-fal フライパンセット" },
-  { key:"J", name:"冷酒徳利セット" },
-  { key:"B", name:"クモリ ヨガマット" },
-  { key:"C", name:"GP HITSTER" },
-  { key:"D", name:"Francfranc ハンディファン" },
-  { key:"E", name:"Anker モバイルバッテリー" },
-  { key:"F", name:"クイックルワイパー スターターセット" },
-  { key:"G", name:"ドウシシャ 電動かき氷機" },
-  { key:"H", name:"uFit Performance Pole" },
-  { key:"I", name:"Levoit 空気清浄機" },
-  { key:"A", name:"JCBギフトカード" }
+/* 順番 */
+const prizeOrder = [
+  "①JCBギフトカード　10枠",
+  "②kumori ヨガマット　1枠",
+  "③GP HITSTER　1枠",
+  "④Francfranc ハンディファン　1枠",
+  "⑤Anker モバイルバッテリー　1枠",
+  "⑥クイックルワイパー スターターセット　1枠",
+  "⑦ドウシシャ 電動かき氷機　1枠",
+  "⑧uFit Performance Pole　1枠",
+  "⑨Levoit 空気清浄機　1枠",
+  "⑩冷酒徳利セット　1枠",
+  "⑪T-fal フライパンセット　1枠",
+  "⑫Panasonic スチームアイロン　1枠"
 ];
 
-// 🎆 花火エフェクト
+function wait(ms){
+  return new Promise(r=>setTimeout(r,ms));
+}
+
+function scrollToBottom(){
+  window.scrollTo({
+    top:document.body.scrollHeight,
+    behavior:"smooth"
+  });
+}
+
+/* 花火モード */
+let fireworkMode = "normal";
+
+/* ✅ 特賞演出 */
+async function showSpecial(prize, names){
+
+  fireworkMode = "special";
+
+  let overlay = document.createElement("div");
+  overlay.className = "special-overlay";
+
+  overlay.innerHTML = `
+    <div class="special-title">${prize}</div>
+    <div id="specialBox"></div>
+    <div id="ultraBox"></div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  let box = document.getElementById("specialBox");
+  let last = names[names.length - 1];
+
+  // 最後以外
+  for(let i=0;i<names.length-1;i++){
+
+    let div = document.createElement("div");
+    div.className = "special-name";
+    div.textContent = names[i] + " 氏";
+
+    box.appendChild(div);
+
+    await wait(200);
+    div.style.opacity = 1;
+
+    await wait(2000);
+  }
+
+  // 最後ドーン
+  let ultraBox = document.getElementById("ultraBox");
+
+  ultraBox.innerHTML = `
+    <div class="ultra">${last} 氏</div>
+    <div style="font-size:24px;margin-top:20px;">🎉 おめでとう！ 🎉</div>
+  `;
+
+  let ultra = ultraBox.querySelector(".ultra");
+
+  await wait(200);
+  ultra.classList.add("show");
+
+  await wait(4500);
+
+  overlay.remove();
+
+  fireworkMode = "color";
+}
+
+/* 表示 */
+async function loadResult(){
+
+  let res = await fetch(API_URL + "?type=result");
+  let data = await res.json();
+
+  let grouped = {};
+
+  data.forEach((r,i)=>{
+    if(i===0 && r[0]==="prize") return;
+    if(!grouped[r[0]]) grouped[r[0]]=[];
+    grouped[r[0]].push(r[1]);
+  });
+
+  let el = document.getElementById("result");
+
+  for(let prize of prizeOrder){
+
+    if(!grouped[prize]) continue;
+
+    let isSpecial = prizeOrder.indexOf(prize)>=9;
+
+    if(isSpecial){
+      await showSpecial(prize, grouped[prize]);
+    }
+
+    let div = document.createElement("div");
+    div.className = isSpecial ? "card special-card":"card";
+
+    let html = `<b>${prize}</b><br>`;
+
+    grouped[prize].forEach(name=>{
+      html += `<div class="name">${name} 氏</div>`;
+    });
+
+    div.innerHTML = html;
+    el.appendChild(div);
+
+    scrollToBottom();
+
+    await wait(100);
+    div.classList.add("show");
+
+    await wait(2000);
+  }
+
+  // 🔥 フィナーレ
+  startFinale();
+}
+
+/* 🎆 花火（レインボー） */
+
 const canvas = document.getElementById("fireworks");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize",resize);
+resize();
 
-let fireworks = [];
+let particles=[];
+let hue=0;
 
-function createFirework(){
-  let x = Math.random() * canvas.width;
-  let y = Math.random() * canvas.height / 2;
+function createFirework(count=50){
 
-  for(let i=0;i<30;i++){
-    fireworks.push({
+  let x=Math.random()*canvas.width;
+  let y=Math.random()*canvas.height*0.6;
+
+  for(let i=0;i<count;i++){
+    particles.push({
       x,y,
+      hue:hue+Math.random()*30,
       angle:Math.random()*Math.PI*2,
-      speed:Math.random()*5+2,
-      life:50
+      speed:Math.random()*3+2,
+      life:60
     });
   }
+
+  hue+=10;
 }
 
-function animate(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+function update(){
 
-  fireworks.forEach((f,i)=>{
-    f.x += Math.cos(f.angle)*f.speed;
-    f.y += Math.sin(f.angle)*f.speed;
-    f.life--;
+  ctx.fillStyle="rgba(0,0,0,0.2)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    ctx.fillStyle="rgba(255,200,0,"+(f.life/50)+")";
-    ctx.beginPath();
-    ctx.arc(f.x,f.y,2,0,Math.PI*2);
-    ctx.fill();
-
-    if(f.life<=0) fireworks.splice(i,1);
+  particles.forEach(p=>{
+    p.x+=Math.cos(p.angle)*p.speed;
+    p.y+=Math.sin(p.angle)*p.speed;
+    p.life--;
   });
 
-  requestAnimationFrame(animate);
+  particles=particles.filter(p=>p.life>0);
+
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/60;
+    ctx.fillStyle=`hsl(${p.hue},100%,60%)`;
+    ctx.fillRect(p.x,p.y,3,3);
+  });
 }
 
-setInterval(createFirework,1200);
-animate();
+function loop(){
 
-// ⏱ 演出用
-const sleep = ms => new Promise(res=>setTimeout(res,ms));
+  let prob=fireworkMode==="special"?0.15:0.05;
 
-// 🎯 抽選＆表示
-async function showResult(){
-
-  let res = await fetch(API_URL);
-  let data = await res.json();
-
-  data.shift(); // ヘッダー削除
-
-  let pool = {};
-  prizes.forEach(p=> pool[p.key]=[]);
-
-  data.forEach(row=>{
-    prizes.forEach((p,i)=>{
-      for(let j=0;j<(row[i+1]||0);j++){
-        pool[p.key].push(row[0]);
-      }
-    });
-  });
-
-  let winners = new Set();
-
-  function draw(list){
-    let f = list.filter(n=>!winners.has(n));
-    if(!f.length) return "なし";
-    let w = f[Math.floor(Math.random()*f.length)];
-    winners.add(w);
-    return w;
+  if(Math.random()<prob){
+    createFirework();
   }
 
-  let resultDiv = document.getElementById("result");
+  update();
+  requestAnimationFrame(loop);
+}
 
-  // 🎬 順番演出
-  for(const p of prizes){
+loop();
 
-    const isSpecial = ["J","K","L"].includes(p.key);
+/* 🔥 フィナーレ */
+function startFinale(){
 
-    let card = document.createElement("div");
-    card.className = "card " + (isSpecial ? "special" : "");
-    card.innerHTML = p.name;
+  fireworkMode="finale";
 
-    resultDiv.appendChild(card);
+  let count=0;
 
-    await sleep(800);
+  let interval=setInterval(()=>{
+    createFirework(150);
 
-    let winner = draw(pool[p.key]);
-
-    let nameDiv = document.createElement("div");
-    nameDiv.className = "name";
-    nameDiv.innerText = "👤 " + winner;
-
-    card.appendChild(nameDiv);
-
-    if(isSpecial){
-      for(let i=0;i<3;i++) createFirework();
-      await sleep(1500);
-    } else {
-      await sleep(700);
+    count++;
+    if(count>30){
+      clearInterval(interval);
     }
-  }
+  },150);
 }
 
-// 実行
-showResult();
+loadResult();
 
 </script>
 
