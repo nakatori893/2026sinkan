@@ -53,18 +53,14 @@ body > *:not(canvas) {
   color:#000;
 }
 
-/* ===== 特賞演出（見やすさ改善版）===== */
-
+/* 特賞演出 */
 .special-overlay {
   position:fixed;
   top:0;
   left:0;
   width:100%;
   height:100%;
-
-  /* ✅ 見やすさ改善ポイント */
   background:rgba(0,0,0,0.8);
-
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -95,7 +91,6 @@ body > *:not(canvas) {
   transform:scale(1.3);
 }
 
-/* ✅ 文字強調（重要） */
 .special-title,
 .special-name,
 .ultra {
@@ -114,6 +109,9 @@ body > *:not(canvas) {
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbx5WPUKrpn38ao2SyImNz45Nr-8I-XTcTacjwhdyoH-vHw7PKuWoOB2LkIL6SNch3gv/exec";
+
+let isPublic = false;
+let fireworkMode = "normal";
 
 /* 順番 */
 const prizeOrder = [
@@ -142,64 +140,7 @@ function scrollToBottom(){
   });
 }
 
-/* 花火モード */
-let fireworkMode = "normal";
-
-/* ✅ 特賞演出 */
-async function showSpecial(prize, names){
-
-  fireworkMode = "special";
-
-  let overlay = document.createElement("div");
-  overlay.className = "special-overlay";
-
-  overlay.innerHTML = `
-    <div class="special-title">${prize}</div>
-    <div id="specialBox"></div>
-    <div id="ultraBox"></div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  let box = document.getElementById("specialBox");
-  let last = names[names.length - 1];
-
-  // 最後以外
-  for(let i=0;i<names.length-1;i++){
-
-    let div = document.createElement("div");
-    div.className = "special-name";
-    div.textContent = names[i] + " 氏";
-
-    box.appendChild(div);
-
-    await wait(200);
-    div.style.opacity = 1;
-
-    await wait(2000);
-  }
-
-  // 最後ドーン
-  let ultraBox = document.getElementById("ultraBox");
-
-  ultraBox.innerHTML = `
-    <div class="ultra">${last} 氏</div>
-    <div style="font-size:24px;margin-top:20px;">🎉 おめでとう！ 🎉</div>
-  `;
-
-  let ultra = ultraBox.querySelector(".ultra");
-
-  await wait(200);
-  ultra.classList.add("show");
-
-  await wait(4500);
-
-  overlay.remove();
-
-  fireworkMode = "color";
-}
-
-/* 公開チェック処理 */
+/* ✅ 公開チェック */
 async function checkPublic(){
 
   let res = await fetch(API_URL + "?type=public");
@@ -213,21 +154,35 @@ async function checkPublic(){
       </div>
     `;
 
+    isPublic = false;
     throw new Error("非公開");
   }
+
+  isPublic = true;
 }
 
-/* 起動処理変更 */
+/* ✅ 起動 */
 async function start(){
 
-  await checkPublic();   // ✅ 非公開ならここで止まる
-  loadResult();          // ✅ 公開中だけ演出スタート
+  try {
+    await checkPublic();
+
+    if(!isPublic) return;
+
+    await loadResult();
+
+  } catch(e){
+    console.log("非公開中で停止");
+  }
+
 }
 
 start();
 
-/* 表示 */
+/* ✅ 表示 */
 async function loadResult(){
+
+  if(!isPublic) return;
 
   let res = await fetch(API_URL + "?type=result");
   let data = await res.json();
@@ -243,6 +198,8 @@ async function loadResult(){
   let el = document.getElementById("result");
 
   for(let prize of prizeOrder){
+
+    if(!isPublic) return;
 
     if(!grouped[prize]) continue;
 
@@ -272,12 +229,66 @@ async function loadResult(){
     await wait(2000);
   }
 
-  // 🔥 フィナーレ
   startFinale();
 }
 
-/* 🎆 花火（レインボー） */
+/* ✅ 特賞 */
+async function showSpecial(prize, names){
 
+  if(!isPublic) return;
+
+  fireworkMode = "special";
+
+  let overlay = document.createElement("div");
+  overlay.className = "special-overlay";
+
+  overlay.innerHTML = `
+    <div class="special-title">${prize}</div>
+    <div id="specialBox"></div>
+    <div id="ultraBox"></div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  let box = document.getElementById("specialBox");
+  let last = names[names.length - 1];
+
+  for(let i=0;i<names.length-1;i++){
+
+    if(!isPublic) return;
+
+    let div = document.createElement("div");
+    div.className = "special-name";
+    div.textContent = names[i] + " 氏";
+
+    box.appendChild(div);
+
+    await wait(200);
+    div.style.opacity = 1;
+
+    await wait(2000);
+  }
+
+  let ultraBox = document.getElementById("ultraBox");
+
+  ultraBox.innerHTML = `
+    <div class="ultra">${last} 氏</div>
+    <div style="font-size:24px;margin-top:20px;">🎉 おめでとう！ 🎉</div>
+  `;
+
+  let ultra = ultraBox.querySelector(".ultra");
+
+  await wait(200);
+  ultra.classList.add("show");
+
+  await wait(4500);
+
+  overlay.remove();
+
+  fireworkMode = "color";
+}
+
+/* 🎆 花火 */
 const canvas = document.getElementById("fireworks");
 const ctx = canvas.getContext("2d");
 
@@ -346,6 +357,8 @@ loop();
 /* 🔥 フィナーレ */
 function startFinale(){
 
+  if(!isPublic) return;
+
   fireworkMode="finale";
 
   let count=0;
@@ -359,8 +372,6 @@ function startFinale(){
     }
   },150);
 }
-
-loadResult();
 
 </script>
 
