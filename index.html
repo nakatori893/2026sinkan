@@ -127,7 +127,7 @@ button:active {
 
   <p>残り: <span id="remain">3</span></p>
 
-  <button class="btn-main" onclick="vote()">🎁 投票する</button>
+  <button id="voteBtn" class="btn-main" onclick="vote()">🎁 投票する</button>
 </div>
 
 <!-- 管理画面 -->
@@ -137,6 +137,8 @@ button:active {
   <button class="btn-load" onclick="loadData()">📊 データ取得</button>
   <button class="btn-lottery" onclick="lottery()">🎯 抽選</button>
   <button class="btn-public" onclick="openPublic()">📺 結果発表</button>
+  <button onclick="setPublic(true)" style="background:green;">✅ 抽選結果公開</button>
+  <button onclick="setPublic(false)" style="background:#777;">⛔ 抽選結果非公開</button>
   <button class="btn-reset" onclick="resetAllVotes()">🗑 全削除</button>
 
 <div id="voteCount" style="margin-top:10px; font-weight:bold;"></div>
@@ -156,7 +158,7 @@ button:active {
 
 <script>
 
-const API_URL="https://script.google.com/macros/s/AKfycbzQimC2eGgB_jG2w2k91dWhoBPCfnSh0tbueedUG9nlsnSk4sMVq0_4DpiPW47RUGCS/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbx5WPUKrpn38ao2SyImNz45Nr-8I-XTcTacjwhdyoH-vHw7PKuWoOB2LkIL6SNch3gv/exec";
 
 /* 景品 */
 const prizes = [
@@ -233,8 +235,19 @@ prizes.forEach(p=>{
 /* 投票 */
 function vote(){
 
+  const btn = document.getElementById("voteBtn");
+  if(btn.disabled) return;
+
+  btn.disabled = true;
+  btn.innerText = "送信中...";
+
   const name = document.getElementById("name").value.trim();
-  if(!name) return alert("名前入力");
+  if(!name){
+    alert("名前入力");
+    btn.disabled = false;
+    btn.innerText = "🎁 投票する";
+    return;
+  }
 
   fetch(API_URL,{
     method:"POST",
@@ -243,11 +256,44 @@ function vote(){
   .then(r=>r.json())
   .then(res=>{
     if(res.exists){
-      if(!confirm("上書きしますか？")) return;
-      submitVote(name,"update");
+      if(!confirm("上書きしますか？")){
+        btn.disabled = false;
+        btn.innerText = "🎁 投票する";
+        return;
+      }
+      return submitVote(name,"update");
     }else{
-      submitVote(name,"new");
+      return submitVote(name,"new");
     }
+  })
+  .finally(()=>{
+    // ✅ 通信終了で復活
+    setTimeout(()=>{
+      btn.disabled = false;
+      btn.innerText = "🎁 投票する";
+    }, 2000);
+  });
+}
+
+/* 公開・非公開操作 */
+function setPublic(flag){
+
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({
+      type:"setPublic",
+      value: flag
+    })
+  })
+  .then(()=>{
+
+    alert(flag ? "結果を公開しました" : "非公開にしました");
+
+    // ✅ 公開時のみ発表画面を開いて演出スタート
+    if(flag){
+      window.open("public.html", "_blank");
+    }
+
   });
 }
 

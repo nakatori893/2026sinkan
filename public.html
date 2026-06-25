@@ -113,7 +113,7 @@ body > *:not(canvas) {
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzQimC2eGgB_jG2w2k91dWhoBPCfnSh0tbueedUG9nlsnSk4sMVq0_4DpiPW47RUGCS/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx5WPUKrpn38ao2SyImNz45Nr-8I-XTcTacjwhdyoH-vHw7PKuWoOB2LkIL6SNch3gv/exec";
 
 /* 順番 */
 const prizeOrder = [
@@ -198,6 +198,33 @@ async function showSpecial(prize, names){
 
   fireworkMode = "color";
 }
+
+/* 公開チェック処理 */
+async function checkPublic(){
+
+  let res = await fetch(API_URL + "?type=public");
+  let data = await res.json();
+
+  if(!data.isPublic){
+
+    document.body.innerHTML = `
+      <div style="text-align:center;margin-top:100px;">
+        <h1>結果はまだ公開されていません</h1>
+      </div>
+    `;
+
+    throw new Error("非公開");
+  }
+}
+
+/* 起動処理変更 */
+async function start(){
+
+  await checkPublic();   // ✅ 非公開ならここで止まる
+  loadResult();          // ✅ 公開中だけ演出スタート
+}
+
+start();
 
 /* 表示 */
 async function loadResult(){
